@@ -1,0 +1,151 @@
+--// Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+--// Remove GUI antiga
+if player.PlayerGui:FindFirstChild("MHStealCharacter") then
+	player.PlayerGui.MHStealCharacter:Destroy()
+end
+
+--// ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MHStealCharacter"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player.PlayerGui
+
+--// Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 320, 0, 230)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
+
+--// RGB Border
+local Border = Instance.new("Frame")
+Border.Size = UDim2.new(1,0,1,0)
+Border.BackgroundColor3 = Color3.new(1,1,1)
+Border.Parent = MainFrame
+Instance.new("UICorner", Border).CornerRadius = UDim.new(0,14)
+
+local Gradient = Instance.new("UIGradient", Border)
+Gradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
+	ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255,128,0)),
+	ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255,255,0)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,255,0)),
+	ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0,255,255)),
+	ColorSequenceKeypoint.new(0.83, Color3.fromRGB(0,0,255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,255)),
+}
+
+RunService.RenderStepped:Connect(function(dt)
+	Gradient.Rotation = (Gradient.Rotation + dt*60) % 360
+end)
+
+--// Inner Frame
+local Inner = Instance.new("Frame")
+Inner.Size = UDim2.new(1,-6,1,-6)
+Inner.Position = UDim2.new(0,3,0,3)
+Inner.BackgroundColor3 = Color3.fromRGB(30,30,40)
+Inner.Parent = Border
+Instance.new("UICorner", Inner).CornerRadius = UDim.new(0,12)
+
+--// Title
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1,0,0,40)
+Title.Text = "mh steal character"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.BackgroundColor3 = Color3.fromRGB(45,45,60)
+Title.Parent = Inner
+Instance.new("UICorner", Title).CornerRadius = UDim.new(0,10)
+
+--// Subtitle
+local Subtitle = Instance.new("TextLabel")
+Subtitle.Size = UDim2.new(1,-20,0,30)
+Subtitle.Position = UDim2.new(0,10,0,45)
+Subtitle.BackgroundTransparency = 1
+Subtitle.TextWrapped = true
+Subtitle.Text = "Type the person's nickname below."
+Subtitle.Font = Enum.Font.Gotham
+Subtitle.TextSize = 14
+Subtitle.TextColor3 = Color3.fromRGB(200,200,200)
+Subtitle.Parent = Inner
+
+--// TextBox
+local NameBox = Instance.new("TextBox")
+NameBox.Size = UDim2.new(1,-40,0,36)
+NameBox.Position = UDim2.new(0,20,0,85)
+NameBox.PlaceholderText = "Username"
+NameBox.Text = ""
+NameBox.ClearTextOnFocus = false
+NameBox.Font = Enum.Font.Gotham
+NameBox.TextSize = 14
+NameBox.TextColor3 = Color3.fromRGB(255,255,255)
+NameBox.BackgroundColor3 = Color3.fromRGB(50,50,65)
+NameBox.Parent = Inner
+Instance.new("UICorner", NameBox).CornerRadius = UDim.new(0,8)
+
+--// Button
+local StealButton = Instance.new("TextButton")
+StealButton.Size = UDim2.new(1,-40,0,38)
+StealButton.Position = UDim2.new(0,20,0,135)
+StealButton.Text = "Steal Char"
+StealButton.Font = Enum.Font.GothamBold
+StealButton.TextSize = 14
+StealButton.TextColor3 = Color3.fromRGB(255,255,255)
+StealButton.BackgroundColor3 = Color3.fromRGB(70,120,255)
+StealButton.Parent = Inner
+Instance.new("UICorner", StealButton).CornerRadius = UDim.new(0,8)
+
+--// Status Label
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1,-20,0,25)
+Status.Position = UDim2.new(0,10,1,-30)
+Status.BackgroundTransparency = 1
+Status.Text = ""
+Status.Font = Enum.Font.Gotham
+Status.TextSize = 13
+Status.TextColor3 = Color3.fromRGB(120,255,120)
+Status.Parent = Inner
+
+--// STEAL FUNCTION
+local function StealCharacter(username)
+	local success, userId = pcall(function()
+		return Players:GetUserIdFromNameAsync(username)
+	end)
+	if not success then
+		Status.TextColor3 = Color3.fromRGB(255,120,120)
+		Status.Text = "Invalid username"
+		return
+	end
+
+	local success2, desc = pcall(function()
+		return Players:GetHumanoidDescriptionFromUserId(userId)
+	end)
+	if not success2 then
+		Status.TextColor3 = Color3.fromRGB(255,120,120)
+		Status.Text = "Failed to copy skin"
+		return
+	end
+
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+	hum:ApplyDescription(desc)
+
+	Status.TextColor3 = Color3.fromRGB(120,255,120)
+	Status.Text = "Skin copied successfully"
+end
+
+--// Button Click
+StealButton.MouseButton1Click:Connect(function()
+	if NameBox.Text ~= "" then
+		StealCharacter(NameBox.Text)
+	end
+end)
