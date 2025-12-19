@@ -1,145 +1,128 @@
--- MH STEAL CHARACTER (BETA STABLE)
--- Visual Only | Sem copiar animações (anti-bug)
+-- MH Steal Character | V1 ESTÁVEL
+-- visual only | no animation break
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local player = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
 
-if player.PlayerGui:FindFirstChild("MH_StealUI") then
-	player.PlayerGui.MH_StealUI:Destroy()
-end
-
--- GUI
-local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.Name = "MH_StealUI"
+-- ================= UI =================
+local gui = Instance.new("ScreenGui")
+gui.Name = "MH_StealCharacter"
 gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,260,0,155)
-frame.Position = UDim2.new(0.5,-130,0.4,0)
-frame.BackgroundColor3 = Color3.fromRGB(30,30,40)
-frame.Active = true
-frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0,260,0,140)
+main.Position = UDim2.new(0.5,-130,0.5,-70)
+main.BackgroundColor3 = Color3.fromRGB(20,20,25)
+main.BorderSizePixel = 0
+main.Parent = gui
+main.Active = true
+main.Draggable = true
 
-local stroke = Instance.new("UIStroke", frame)
+local stroke = Instance.new("UIStroke", main)
 stroke.Thickness = 2
-RunService.RenderStepped:Connect(function()
-	stroke.Color = Color3.fromHSV((tick()%5)/5,1,1)
-end)
+stroke.Color = Color3.fromRGB(0,255,180)
 
-local title = Instance.new("TextLabel", frame)
+local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1,0,0,28)
+title.BackgroundTransparency = 1
 title.Text = "MH Steal Character"
 title.Font = Enum.Font.GothamBold
-title.TextSize = 14
+title.TextSize = 16
 title.TextColor3 = Color3.new(1,1,1)
-title.BackgroundColor3 = Color3.fromRGB(40,40,55)
-Instance.new("UICorner", title).CornerRadius = UDim.new(0,10)
+title.Parent = main
 
-local box = Instance.new("TextBox", frame)
-box.Position = UDim2.new(0,10,0,50)
-box.Size = UDim2.new(1,-20,0,30)
-box.PlaceholderText = "Username"
-box.ClearTextOnFocus = false
-box.BackgroundColor3 = Color3.fromRGB(45,45,60)
+local box = Instance.new("TextBox")
+box.Size = UDim2.new(1,-20,0,32)
+box.Position = UDim2.new(0,10,0,40)
+box.PlaceholderText = "Type the person's nickname"
+box.Text = ""
+box.Font = Enum.Font.Gotham
+box.TextSize = 14
+box.BackgroundColor3 = Color3.fromRGB(35,35,40)
 box.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", box).CornerRadius = UDim.new(0,8)
+box.ClearTextOnFocus = false
+box.Parent = main
 
-local btn = Instance.new("TextButton", frame)
-btn.Position = UDim2.new(0,10,0,90)
+local btn = Instance.new("TextButton")
 btn.Size = UDim2.new(1,-20,0,32)
+btn.Position = UDim2.new(0,10,0,80)
 btn.Text = "Steal Skin"
 btn.Font = Enum.Font.GothamBold
 btn.TextSize = 14
 btn.BackgroundColor3 = Color3.fromRGB(70,120,255)
 btn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+btn.Parent = main
 
-local status = Instance.new("TextLabel", frame)
-status.Position = UDim2.new(0,10,0,128)
-status.Size = UDim2.new(1,-20,0,18)
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1,-20,0,20)
+status.Position = UDim2.new(0,10,1,-24)
 status.BackgroundTransparency = 1
-status.TextColor3 = Color3.fromRGB(150,255,150)
-status.TextXAlignment = Enum.TextXAlignment.Left
+status.Text = ""
 status.Font = Enum.Font.Gotham
 status.TextSize = 12
+status.TextColor3 = Color3.fromRGB(0,255,180)
+status.Parent = main
 
--- CORE
-local clone, welds = nil, {}
+local function setStatus(txt, ok)
+	status.Text = txt
+	status.TextColor3 = ok and Color3.fromRGB(0,255,180) or Color3.fromRGB(255,80,80)
+end
 
-local function clear()
-	if clone then clone:Destroy() end
-	for _,w in pairs(welds) do w:Destroy() end
-	welds = {}
-
-	local char = player.Character
-	if char then
-		for _,p in pairs(char:GetDescendants()) do
-			if p:IsA("BasePart") then
-				p.LocalTransparencyModifier = 0
-			end
+-- ================= LOGIC =================
+local function clearAccessories(char)
+	for _,v in ipairs(char:GetChildren()) do
+		if v:IsA("Accessory") then
+			v:Destroy()
 		end
 	end
 end
 
-local function steal(username)
-	clear()
-	status.Text = "Copying skin..."
+local function copyFace(fromChar, toChar)
+	local fromHead = fromChar:FindFirstChild("Head")
+	local toHead = toChar:FindFirstChild("Head")
+	if not fromHead or not toHead then return end
 
-	local ok,id = pcall(function()
-		return Players:GetUserIdFromNameAsync(username)
-	end)
-	if not ok then
-		status.Text = "User not found"
-		return
+	for _,d in ipairs(toHead:GetChildren()) do
+		if d:IsA("Decal") then d:Destroy() end
 	end
 
-	local ok2,model = pcall(function()
-		return Players:CreateHumanoidModelFromUserId(id)
-	end)
-	if not ok2 then
-		status.Text = "Failed to load avatar"
-		return
-	end
-
-	model.Parent = workspace
-	model.Name = "MH_VisualClone"
-	clone = model
-
-	local char = player.Character or player.CharacterAdded:Wait()
-
-	-- remove humanoid do clone
-	local h = model:FindFirstChildOfClass("Humanoid")
-	if h then h:Destroy() end
-
-	-- esconder corpo original
-	for _,p in pairs(char:GetDescendants()) do
-		if p:IsA("BasePart") then
-			p.LocalTransparencyModifier = 1
+	for _,d in ipairs(fromHead:GetChildren()) do
+		if d:IsA("Decal") then
+			d:Clone().Parent = toHead
 		end
 	end
+end
 
-	-- soldar clone
-	for _,p in pairs(model:GetDescendants()) do
-		if p:IsA("BasePart") then
-			p.CanCollide = false
-			local o = char:FindFirstChild(p.Name)
-			if o then
-				p.CFrame = o.CFrame
-				local w = Instance.new("WeldConstraint", p)
-				w.Part0 = p
-				w.Part1 = o
-				table.insert(welds, w)
-			end
+local function copyAccessories(fromChar, toChar)
+	for _,acc in ipairs(fromChar:GetChildren()) do
+		if acc:IsA("Accessory") then
+			acc:Clone().Parent = toChar
 		end
 	end
-
-	status.Text = "Skin aplicada (estável)"
 end
 
 btn.MouseButton1Click:Connect(function()
-	if box.Text ~= "" then
-		steal(box.Text)
+	local name = box.Text
+	if name == "" then
+		setStatus("Type a nickname first", false)
+		return
 	end
+
+	local target = Players:FindFirstChild(name)
+	if not target or not target.Character then
+		setStatus("Player not found", false)
+		return
+	end
+
+	local myChar = LocalPlayer.Character
+	if not myChar then return end
+
+	clearAccessories(myChar)
+	copyAccessories(target.Character, myChar)
+	copyFace(target.Character, myChar)
+
+	setStatus("Skin applied (stable)", true)
 end)
+
+setStatus("Ready", true)
