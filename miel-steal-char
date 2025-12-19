@@ -1,223 +1,86 @@
---// Services
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
 
-local player = Players.LocalPlayer
+local currentClone
+local welds = {}
 
---// Remove GUI antiga
-if player.PlayerGui:FindFirstChild("MHStealCharacter") then
-	player.PlayerGui.MHStealCharacter:Destroy()
+local function ClearClone()
+	if currentClone then
+		currentClone:Destroy()
+		currentClone = nil
+	end
+	for _, w in ipairs(welds) do
+		w:Destroy()
+	end
+	welds = {}
+
+	local char = player.Character
+	if char then
+		for _, v in ipairs(char:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.LocalTransparencyModifier = 0
+			end
+		end
+	end
 end
 
---// ScreenGui
-local ScreenGui = Instance.new("ScreenGui", player.PlayerGui)
-ScreenGui.Name = "MHStealCharacter"
-ScreenGui.ResetOnSpawn = false
-
---// Main Frame (PEQUENO)
-local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 260, 0, 180)
-Main.Position = UDim2.new(0.5, 0, 0.5, 0)
-Main.AnchorPoint = Vector2.new(0.5, 0.5)
-Main.BackgroundColor3 = Color3.fromRGB(28,28,36)
-Main.BorderSizePixel = 0
-Main.Active = true
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
-
---// RGB Border
-local Border = Instance.new("Frame", Main)
-Border.Size = UDim2.new(1,0,1,0)
-Border.BackgroundColor3 = Color3.new(1,1,1)
-Border.ZIndex = 0
-Instance.new("UICorner", Border).CornerRadius = UDim.new(0,12)
-
-local Grad = Instance.new("UIGradient", Border)
-Grad.Color = ColorSequence.new{
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)),
-	ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0,255,0)),
-	ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0,0,255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,255)),
-}
-
-RunService.RenderStepped:Connect(function(dt)
-	Grad.Rotation = (Grad.Rotation + dt*50) % 360
-end)
-
---// Inner
-local Inner = Instance.new("Frame", Border)
-Inner.Size = UDim2.new(1,-4,1,-4)
-Inner.Position = UDim2.new(0,2,0,2)
-Inner.BackgroundColor3 = Color3.fromRGB(28,28,36)
-Instance.new("UICorner", Inner).CornerRadius = UDim.new(0,10)
-
---// Top Bar (DRAG AQUI)
-local Top = Instance.new("Frame", Inner)
-Top.Size = UDim2.new(1,0,0,32)
-Top.BackgroundColor3 = Color3.fromRGB(40,40,55)
-Instance.new("UICorner", Top).CornerRadius = UDim.new(0,10)
-
-local Title = Instance.new("TextLabel", Top)
-Title.Size = UDim2.new(1,-40,1,0)
-Title.Position = UDim2.new(0,10,0,0)
-Title.BackgroundTransparency = 1
-Title.Text = "mh steal character"
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.TextColor3 = Color3.fromRGB(255,255,255)
-
---// Minimize Button
-local Min = Instance.new("TextButton", Top)
-Min.Size = UDim2.new(0,24,0,24)
-Min.Position = UDim2.new(1,-28,0.5,-12)
-Min.Text = "-"
-Min.Font = Enum.Font.GothamBold
-Min.TextSize = 18
-Min.BackgroundColor3 = Color3.fromRGB(70,70,90)
-Min.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", Min).CornerRadius = UDim.new(1,0)
-
---// Content
-local Content = Instance.new("Frame", Inner)
-Content.Size = UDim2.new(1,0,1,-32)
-Content.Position = UDim2.new(0,0,0,32)
-Content.BackgroundTransparency = 1
-
-local Info = Instance.new("TextLabel", Content)
-Info.Size = UDim2.new(1,-16,0,28)
-Info.Position = UDim2.new(0,8,0,6)
-Info.BackgroundTransparency = 1
-Info.TextWrapped = true
-Info.Text = "Type the person's nickname below."
-Info.Font = Enum.Font.Gotham
-Info.TextSize = 12
-Info.TextColor3 = Color3.fromRGB(200,200,200)
-
-local Box = Instance.new("TextBox", Content)
-Box.Size = UDim2.new(1,-20,0,30)
-Box.Position = UDim2.new(0,10,0,40)
-Box.PlaceholderText = "Username"
-Box.ClearTextOnFocus = false
-Box.Font = Enum.Font.Gotham
-Box.TextSize = 13
-Box.TextColor3 = Color3.fromRGB(255,255,255)
-Box.BackgroundColor3 = Color3.fromRGB(50,50,65)
-Instance.new("UICorner", Box).CornerRadius = UDim.new(0,8)
-
-local Btn = Instance.new("TextButton", Content)
-Btn.Size = UDim2.new(1,-20,0,32)
-Btn.Position = UDim2.new(0,10,0,78)
-Btn.Text = "Steal Char"
-Btn.Font = Enum.Font.GothamBold
-Btn.TextSize = 13
-Btn.TextColor3 = Color3.fromRGB(255,255,255)
-Btn.BackgroundColor3 = Color3.fromRGB(90,130,255)
-Instance.new("UICorner", Btn).CornerRadius = UDim.new(0,8)
-
-local Status = Instance.new("TextLabel", Content)
-Status.Size = UDim2.new(1,-16,0,20)
-Status.Position = UDim2.new(0,8,1,-22)
-Status.BackgroundTransparency = 1
-Status.Font = Enum.Font.Gotham
-Status.TextSize = 12
-Status.Text = ""
-
---================= CLONE VISUAL (FUNCIONA EM QUALQUER JOGO) =================
-
-local clonedModel
-local followConn
-
 local function StealCharacter(username)
-	Status.TextColor3 = Color3.fromRGB(200,200,200)
 	Status.Text = "Copying skin..."
 
-	if followConn then followConn:Disconnect() end
-	if clonedModel then clonedModel:Destroy() end
+	ClearClone()
 
-	local ok, userId = pcall(function()
+	local success, userId = pcall(function()
 		return Players:GetUserIdFromNameAsync(username)
 	end)
-	if not ok then
-		Status.TextColor3 = Color3.fromRGB(255,120,120)
+	if not success then
 		Status.Text = "Invalid username"
 		return
 	end
 
-	local ok2, model = pcall(function()
+	local success2, model = pcall(function()
 		return Players:CreateHumanoidModelFromUserId(userId)
 	end)
-	if not ok2 or not model then
-		Status.TextColor3 = Color3.fromRGB(255,120,120)
+	if not success2 or not model then
 		Status.Text = "Failed to load avatar"
 		return
 	end
 
 	model.Name = "MH_StolenCharacter"
 	model.Parent = workspace
-	clonedModel = model
+	currentClone = model
+
+	-- REMOVE HUMANOID DO CLONE
+	local cloneHumanoid = model:FindFirstChildOfClass("Humanoid")
+	if cloneHumanoid then
+		cloneHumanoid:Destroy()
+	end
 
 	local char = player.Character or player.CharacterAdded:Wait()
-	local hrp = char:WaitForChild("HumanoidRootPart")
-	model:SetPrimaryPartCFrame(hrp.CFrame)
 
-	-- esconde seu personagem
-	for _,v in ipairs(char:GetDescendants()) do
+	-- ESCONDE SEU CORPO
+	for _, v in ipairs(char:GetDescendants()) do
 		if v:IsA("BasePart") then
 			v.LocalTransparencyModifier = 1
 		end
 	end
 
-	-- segue o player
-	followConn = RunService.RenderStepped:Connect(function()
-		if clonedModel and clonedModel.PrimaryPart and hrp then
-			clonedModel:SetPrimaryPartCFrame(hrp.CFrame)
+	-- SOLDA PEÇA POR PEÇA
+	for _, part in ipairs(model:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = false
+			part.CanCollide = false
+
+			local original = char:FindFirstChild(part.Name)
+			if original and original:IsA("BasePart") then
+				part.CFrame = original.CFrame
+
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = part
+				weld.Part1 = original
+				weld.Parent = part
+				table.insert(welds, weld)
+			end
 		end
-	end)
-
-	Status.TextColor3 = Color3.fromRGB(120,255,120)
-	Status.Text = "Skin copied successfully"
-end
-
-Btn.MouseButton1Click:Connect(function()
-	if Box.Text ~= "" then
-		StealCharacter(Box.Text)
 	end
-end)
 
---================= MINIMIZAR =================
-local minimized = false
-Min.MouseButton1Click:Connect(function()
-	minimized = not minimized
-	Content.Visible = not minimized
-	Min.Text = minimized and "+" or "-"
-	Main.Size = minimized and UDim2.new(0,260,0,32) or UDim2.new(0,260,0,180)
-end)
-
---================= DRAG (SEM BUG, PC + MOBILE) =================
-do
-	local dragging, startPos, startInput
-	Top.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			startInput = input.Position
-			startPos = Main.Position
-		end
-	end)
-
-	UIS.InputChanged:Connect(function(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-		or input.UserInputType == Enum.UserInputType.Touch) then
-			local delta = input.Position - startInput
-			Main.Position = UDim2.new(
-				startPos.X.Scale, startPos.X.Offset + delta.X,
-				startPos.Y.Scale, startPos.Y.Offset + delta.Y
-			)
-		end
-	end)
-
-	UIS.InputEnded:Connect(function()
-		dragging = false
-	end)
+	Status.Text = "Skin copied successfully"
 end
