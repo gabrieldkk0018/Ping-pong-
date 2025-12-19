@@ -1,11 +1,13 @@
 -- MH STEAL CHARACTER (BETA)
--- CLIENT-SIDE VISUAL COPY (FUNCIONA)
+-- Visual client-side + animações copiadas
+-- Mobile + PC | Draggable | RGB Border
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
+-- Evita duplicar UI
 if player.PlayerGui:FindFirstChild("MH_StealUI") then
 	player.PlayerGui.MH_StealUI:Destroy()
 end
@@ -25,6 +27,7 @@ frame.Active = true
 frame.Draggable = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
 
+-- RGB Border
 local stroke = Instance.new("UIStroke", frame)
 stroke.Thickness = 2
 RunService.RenderStepped:Connect(function()
@@ -85,7 +88,7 @@ status.TextColor3 = Color3.fromRGB(150,255,150)
 local currentClone
 local welds = {}
 
-local function Clear()
+local function ClearVisual()
 	if currentClone then currentClone:Destroy() end
 	for _,w in pairs(welds) do w:Destroy() end
 	welds = {}
@@ -100,9 +103,43 @@ local function Clear()
 	end
 end
 
+-- Copia animações do usuário para o SEU humanoid
+local function CopyAnimationsFromUser(userId)
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+
+	local ok, desc = pcall(function()
+		return Players:GetHumanoidDescriptionFromUserId(userId)
+	end)
+	if not ok or not desc then return end
+
+	local animate = char:FindFirstChild("Animate")
+	if not animate then return end
+
+	local function setAnim(folderName, animId)
+		if not animId or animId == 0 then return end
+		local folder = animate:FindFirstChild(folderName)
+		if folder then
+			for _,a in pairs(folder:GetChildren()) do
+				if a:IsA("Animation") then
+					a.AnimationId = "rbxassetid://"..animId
+				end
+			end
+		end
+	end
+
+	setAnim("idle", desc.IdleAnimation)
+	setAnim("walk", desc.WalkAnimation)
+	setAnim("run", desc.RunAnimation)
+	setAnim("jump", desc.JumpAnimation)
+	setAnim("fall", desc.FallAnimation)
+	setAnim("climb", desc.ClimbAnimation)
+end
+
 local function StealCharacter(username)
 	status.Text = "Copying skin..."
-	Clear()
+	ClearVisual()
 
 	local ok, userId = pcall(function()
 		return Players:GetUserIdFromNameAsync(username)
@@ -129,12 +166,14 @@ local function StealCharacter(username)
 
 	local char = player.Character or player.CharacterAdded:Wait()
 
+	-- Esconde corpo original
 	for _,p in pairs(char:GetDescendants()) do
 		if p:IsA("BasePart") then
 			p.LocalTransparencyModifier = 1
 		end
 	end
 
+	-- Solda partes do clone
 	for _,part in pairs(model:GetDescendants()) do
 		if part:IsA("BasePart") then
 			part.CanCollide = false
@@ -150,6 +189,9 @@ local function StealCharacter(username)
 			end
 		end
 	end
+
+	-- COPIA ANIMAÇÕES (resolve o boneco parado)
+	CopyAnimationsFromUser(userId)
 
 	status.Text = "Skin copied successfully"
 end
