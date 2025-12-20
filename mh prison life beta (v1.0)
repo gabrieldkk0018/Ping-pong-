@@ -1,8 +1,9 @@
 --==================================================
--- MH PRISON HUB v1
+-- MH PRISON HUB v1 (MOBILE ONLY)
 -- FPS BOOST | ESP | AIMBOT
 --==================================================
 
+-- SERVICES
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -11,13 +12,14 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 
---==================================================
--- UI BASE
---==================================================
-
+-- CLEAN
 if game.CoreGui:FindFirstChild("MH_Prison_Hub") then
 	game.CoreGui.MH_Prison_Hub:Destroy()
 end
+
+--==================================================
+-- UI
+--==================================================
 
 local Gui = Instance.new("ScreenGui", game.CoreGui)
 Gui.Name = "MH_Prison_Hub"
@@ -35,15 +37,11 @@ Instance.new("UICorner",Main).CornerRadius = UDim.new(0,12)
 local Stroke = Instance.new("UIStroke",Main)
 Stroke.Thickness = 2
 Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
 RunService.RenderStepped:Connect(function()
 	Stroke.Color = Color3.fromHSV((tick()%5)/5,1,1)
 end)
 
---==================================================
 -- TOP BAR
---==================================================
-
 local Top = Instance.new("TextButton",Main)
 Top.Size = UDim2.new(1,0,0,36)
 Top.Text = "MH Prison Hub"
@@ -62,10 +60,7 @@ MinBtn.TextSize = 18
 MinBtn.BackgroundTransparency = 1
 MinBtn.TextColor3 = Color3.fromRGB(255,255,255)
 
---==================================================
 -- CONTENT
---==================================================
-
 local Content = Instance.new("Frame",Main)
 Content.Position = UDim2.new(0,0,0,36)
 Content.Size = UDim2.new(1,0,1,-36)
@@ -89,7 +84,42 @@ local ESPBtn = makeButton("ESP",56)
 local AIMBtn = makeButton("Aimbot",102)
 
 --==================================================
--- MINIMIZE FIX (SEM BUG)
+-- DRAG MOBILE ONLY
+--==================================================
+
+do
+	local dragging = false
+	local dragStart, startPos
+
+	Top.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = Main.Position
+		end
+	end)
+
+	Top.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.Touch then
+			local delta = input.Position - dragStart
+			Main.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+--==================================================
+-- MINIMIZE (SEM BUG)
 --==================================================
 
 local minimized = false
@@ -120,7 +150,9 @@ local function FPSBoost(state)
 	if state then
 		Lighting.GlobalShadows = false
 		Lighting.FogEnd = 1e9
-		settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+		pcall(function()
+			settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+		end)
 	end
 	FPSBtn.Text = "FPS Boost: "..(state and "ON" or "OFF")
 end
@@ -130,7 +162,7 @@ FPSBtn.MouseButton1Click:Connect(function()
 end)
 
 --==================================================
--- ESP (PRISON LIFE)
+-- ESP (PRISON LIFE) - WALLHACK
 --==================================================
 
 local ESP_ON = false
@@ -142,7 +174,7 @@ local function applyESP(plr)
 
 	local hl = Instance.new("Highlight")
 	hl.Adornee = plr.Character
-	hl.DepthMode = Enum.HighlightDepthMode.Occluded
+	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	hl.OutlineTransparency = 1
 
 	if plr.Team and plr.Team.Name == "Guards" then
@@ -172,49 +204,45 @@ Players.PlayerAdded:Connect(RefreshESP)
 Players.PlayerRemoving:Connect(RefreshESP)
 
 --==================================================
--- AIMBOT (SUAVE + TEAM CHECK)
+-- AIMBOT MOBILE (AUTO)
 --==================================================
 
 local AIM_ON = false
-local Holding = false
-local FOV = 120
+local FOV = 140
+local SMOOTH = 0.1
 
-UserInputService.InputBegan:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton2 then
-		Holding = true
-	end
-end)
+local function getMobileTarget()
+	local closest
+	local shortest = math.huge
 
-UserInputService.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton2 then
-		Holding = false
-	end
-end)
-
-local function getTarget()
-	local closest,dist = nil,FOV
 	for _,p in pairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer and p.Team ~= LocalPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-			local pos,vis = Camera:WorldToScreenPoint(p.Character.HumanoidRootPart.Position)
-			if vis then
-				local d = (Vector2.new(pos.X,pos.Y)-UserInputService:GetMouseLocation()).Magnitude
-				if d < dist then
-					dist = d
-					closest = p
-				end
+		if p ~= LocalPlayer
+		and p.Team ~= LocalPlayer.Team
+		and p.Character
+		and p.Character:FindFirstChild("HumanoidRootPart")
+		and p.Character:FindFirstChild("Humanoid")
+		and p.Character.Humanoid.Health > 0 then
+
+			local root = p.Character.HumanoidRootPart
+			local dist = (root.Position - Camera.CFrame.Position).Magnitude
+
+			if dist < FOV and dist < shortest then
+				shortest = dist
+				closest = p
 			end
 		end
 	end
+
 	return closest
 end
 
 RunService.RenderStepped:Connect(function()
-	if AIM_ON and Holding then
-		local t = getTarget()
-		if t and t.Character then
+	if AIM_ON then
+		local target = getMobileTarget()
+		if target and target.Character then
 			Camera.CFrame = Camera.CFrame:Lerp(
-				CFrame.new(Camera.CFrame.Position,t.Character.HumanoidRootPart.Position),
-				0.15
+				CFrame.new(Camera.CFrame.Position, target.Character.HumanoidRootPart.Position),
+				SMOOTH
 			)
 		end
 	end
@@ -232,7 +260,7 @@ end)
 pcall(function()
 	game.StarterGui:SetCore("SendNotification",{
 		Title="MH Prison Hub",
-		Text="Loaded successfully!",
+		Text="Loaded (Mobile Only)",
 		Duration=4
 	})
 end)
