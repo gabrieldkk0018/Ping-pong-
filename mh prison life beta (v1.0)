@@ -2,7 +2,6 @@
 -- MOBILE ONLY
 -- by: Miel
 
---================= SERVICES =================--
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -13,6 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 --================= NOTIFY =================--
+
 local function notify(txt)
 	pcall(function()
 		StarterGui:SetCore("SendNotification",{
@@ -24,8 +24,9 @@ local function notify(txt)
 end
 
 --================= GUI =================--
+
 local Gui = Instance.new("ScreenGui")
-Gui.Name = "MH_PrisonLife_V1_2"
+Gui.Name = "MH_PrisonLife_V1"
 Gui.IgnoreGuiInset = true
 Gui.Parent = game.CoreGui
 
@@ -135,6 +136,7 @@ local function createButton(text)
 end
 
 --================= BUTTONS =================--
+
 local FPSBtn = createButton("FPS BOOST: OFF")
 local ESPBtn = createButton("ESP: OFF")
 local AIMBtn = createButton("AIMBOT: OFF")
@@ -145,6 +147,7 @@ local InmateBtn = createButton("Aim Inmates: OFF")
 local GuardBtn = createButton("Aim Guards: OFF")
 
 --================= FPS BOOST =================--
+
 local FPS_ON = false
 FPSBtn.MouseButton1Click:Connect(function()
 	if FPS_ON then return end
@@ -162,89 +165,204 @@ FPSBtn.MouseButton1Click:Connect(function()
 		end
 	end
 	Lighting.GlobalShadows = false
-	notify("FPS Boost ativado!")
+	notify("FPS Boost ativo! Bom jogo!")
 end)
 
---================= ESP =================--
+--================= ESP V2 =================--
+
 local ESP_ON = false
 local ESPFolder = Instance.new("Folder", Gui)
+ESPFolder.Name = "ESP_V2"
 
+-- cores por time
+local function getTeamColor(plr)
+	if not plr.Team then
+		return Color3.fromRGB(255,255,255)
+	end
+
+	if plr.Team.Name == "Criminals" then
+		return Color3.fromRGB(255,60,60)
+	elseif plr.Team.Name == "Guards" then
+		return Color3.fromRGB(0,170,255)
+	elseif plr.Team.Name == "Inmates" then
+		return Color3.fromRGB(255,170,0)
+	end
+
+	return Color3.fromRGB(255,255,255)
+end
+
+-- remove ESP do player
+local function clearESP(plr)
+	local esp = ESPFolder:FindFirstChild(plr.Name)
+	if esp then
+		esp:Destroy()
+	end
+end
+
+-- aplica ESP
 local function applyESP(plr)
 	if not ESP_ON or plr == LocalPlayer then return end
-	local function onChar(char)
-		task.wait(0.2)
-		if not char:FindFirstChild("HumanoidRootPart") then return end
-		if ESPFolder:FindFirstChild(plr.Name) then
-			ESPFolder[plr.Name]:Destroy()
+	if not plr.Character then return end
+
+	local char = plr.Character
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local head = char:FindFirstChild("Head")
+	local hum = char:FindFirstChild("Humanoid")
+
+	if not hrp or not head or not hum or hum.Health <= 0 then return end
+
+	clearESP(plr)
+
+	local folder = Instance.new("Folder")
+	folder.Name = plr.Name
+	folder.Parent = ESPFolder
+
+	-- Highlight
+	local hl = Instance.new("Highlight")
+	hl.Adornee = char
+	hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.OutlineTransparency = 1
+	hl.FillColor = getTeamColor(plr)
+	hl.Parent = folder
+
+	-- BillboardGui
+	local bill = Instance.new("BillboardGui")
+	bill.Adornee = head
+	bill.Size = UDim2.new(0,140,0,45)
+	bill.StudsOffset = Vector3.new(0,2.5,0)
+	bill.AlwaysOnTop = true
+	bill.Parent = folder
+
+	local nameLabel = Instance.new("TextLabel", bill)
+	nameLabel.Size = UDim2.new(1,0,0.5,0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = plr.Name
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextSize = 14
+	nameLabel.TextColor3 = getTeamColor(plr)
+	nameLabel.TextStrokeTransparency = 0.4
+
+	local distLabel = Instance.new("TextLabel", bill)
+	distLabel.Position = UDim2.new(0,0,0.5,0)
+	distLabel.Size = UDim2.new(1,0,0.5,0)
+	distLabel.BackgroundTransparency = 1
+	distLabel.Font = Enum.Font.Gotham
+	distLabel.TextSize = 13
+	distLabel.TextColor3 = Color3.new(1,1,1)
+	distLabel.TextStrokeTransparency = 0.4
+
+	-- atualização
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		if not ESP_ON or not char.Parent or hum.Health <= 0 then
+			if conn then conn:Disconnect() end
+			clearESP(plr)
+			return
 		end
 
-		local hl = Instance.new("Highlight")
-		hl.Name = plr.Name
-		hl.Adornee = char
-		hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-		hl.OutlineTransparency = 1
+		local dist = math.floor((Camera.CFrame.Position - hrp.Position).Magnitude)
+		distLabel.Text = dist .. " studs"
 
-		if plr.Team and plr.Team.Name == "Guards" then
-			hl.FillColor = Color3.fromRGB(0,170,255)
-		elseif plr.Team and plr.Team.Name == "Criminals" then
-			hl.FillColor = Color3.fromRGB(255,60,60)
-		else
-			hl.FillColor = Color3.fromRGB(255,170,0)
-		end
-
-		hl.Parent = ESPFolder
-	end
-
-	if plr.Character then onChar(plr.Character) end
-	plr.CharacterAdded:Connect(onChar)
+		local col = getTeamColor(plr)
+		hl.FillColor = col
+		nameLabel.TextColor3 = col
+	end)
 end
 
+-- refresh geral
 local function refreshESP()
 	ESPFolder:ClearAllChildren()
-	for _,p in pairs(Players:GetPlayers()) do
-		applyESP(p)
+	if not ESP_ON then return end
+
+	for _,plr in pairs(Players:GetPlayers()) do
+		applyESP(plr)
+
+		-- respawn
+		plr.CharacterAdded:Connect(function()
+			task.wait(0.3)
+			applyESP(plr)
+		end)
+
+		-- troca de time
+		plr:GetPropertyChangedSignal("Team"):Connect(function()
+			task.wait(0.1)
+			applyESP(plr)
+		end)
 	end
 end
 
+-- botão ESP
 ESPBtn.MouseButton1Click:Connect(function()
 	ESP_ON = not ESP_ON
 	ESPBtn.Text = "ESP: "..(ESP_ON and "ON" or "OFF")
+
 	if ESP_ON then
 		refreshESP()
-		notify("ESP ativado!")
 	else
 		ESPFolder:ClearAllChildren()
-		notify("ESP desativado!")
 	end
 end)
 
---================= AIMBOT V2 =================--
+-- player entrou
+Players.PlayerAdded:Connect(function(plr)
+	if ESP_ON then
+		task.wait(0.5)
+		applyESP(plr)
+	end
+end)
+
+-- player saiu
+Players.PlayerRemoving:Connect(function(plr)
+	clearESP(plr)
+end)
+
+--================= AIMBOT V2 + FOV =================--
+
 local AIM_ON = false
-local AIM_DISTANCE = 500
-local BASE_SMOOTH = 0.12
+local AIM_DISTANCE = 450
 local FOV_RADIUS = 150
-local LOCKED_TARGET = nil
 
 local AIM_CRIMINALS = true
 local AIM_INMATES = false
 local AIM_GUARDS = false
 
--- FOV visual
+-- Lock system
+local LockedTarget = nil
+local lastValid = 0
+local LOCK_TIMEOUT = 0.25
+
+--================= FOV VISUAL =================--
+
+local FOV_VISIBLE = false
 local FOVCircle = Instance.new("Frame", Gui)
 FOVCircle.AnchorPoint = Vector2.new(0.5,0.5)
 FOVCircle.Position = UDim2.new(0.5,0,0.5,0)
 FOVCircle.Size = UDim2.new(0,FOV_RADIUS*2,0,FOV_RADIUS*2)
 FOVCircle.BackgroundTransparency = 1
 FOVCircle.Visible = false
-Instance.new("UICorner", FOVCircle).CornerRadius = UDim.new(1,0)
+FOVCircle.ZIndex = 999
+
 local stroke = Instance.new("UIStroke", FOVCircle)
 stroke.Thickness = 2
-stroke.Color = Color3.new(1,1,1)
+stroke.Color = Color3.fromRGB(255,255,255)
+
+Instance.new("UICorner", FOVCircle).CornerRadius = UDim.new(1,0)
 
 FOVBtn.MouseButton1Click:Connect(function()
-	FOVCircle.Visible = not FOVCircle.Visible
-	FOVBtn.Text = "SHOW FOV: "..(FOVCircle.Visible and "ON" or "OFF")
+	FOV_VISIBLE = not FOV_VISIBLE
+	FOVCircle.Visible = FOV_VISIBLE
+	FOVBtn.Text = "SHOW FOV: "..(FOV_VISIBLE and "ON" or "OFF")
+	notify(FOV_VISIBLE and "FOV ligado" or "FOV desligado")
 end)
+
+--================= FUNÇÕES =================--
+
+local function inFOV(worldPos)
+	local screenPos, onScreen = Camera:WorldToViewportPoint(worldPos)
+	if not onScreen then return false end
+	local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+	return (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude <= FOV_RADIUS
+end
 
 local function validTarget(plr)
 	if not plr.Team then return false end
@@ -254,52 +372,71 @@ local function validTarget(plr)
 	return false
 end
 
-local function getAimPart(char)
-	return char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+-- Raycast REAL (parede bloqueia)
+local function hasLineOfSight(char)
+	local head = char:FindFirstChild("Head")
+	if not head then return false end
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Blacklist
+	params.FilterDescendantsInstances = {LocalPlayer.Character}
+
+	local ray = workspace:Raycast(
+		Camera.CFrame.Position,
+		head.Position - Camera.CFrame.Position,
+		params
+	)
+
+	return ray and ray.Instance:IsDescendantOf(char)
 end
 
-local function inFOV(pos)
-	local screenPos, onScreen = Camera:WorldToViewportPoint(pos)
-	if not onScreen then return false end
-	local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-	return (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude <= FOV_RADIUS
+local function isValid(plr)
+	return plr
+	and plr.Character
+	and plr.Character:FindFirstChild("Head")
+	and plr.Character:FindFirstChild("Humanoid")
+	and plr.Character.Humanoid.Health > 0
+	and validTarget(plr)
+	and inFOV(plr.Character.Head.Position)
+	and hasLineOfSight(plr.Character)
 end
+
+--================= TARGET SYSTEM =================--
 
 local function getTarget()
-	if LOCKED_TARGET
-	and LOCKED_TARGET.Character
-	and LOCKED_TARGET.Character:FindFirstChild("Humanoid")
-	and LOCKED_TARGET.Character.Humanoid.Health > 0 then
-		return LOCKED_TARGET
+	-- mantém lock se ainda válido
+	if LockedTarget and isValid(LockedTarget) then
+		lastValid = tick()
+		return LockedTarget
+	end
+
+	-- pequeno delay antes de trocar
+	if tick() - lastValid < LOCK_TIMEOUT then
+		return LockedTarget
 	end
 
 	local closest, dist = nil, math.huge
 	for _,p in pairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer
-		and validTarget(p)
-		and p.Character
-		and p.Character:FindFirstChild("Humanoid")
-		and p.Character.Humanoid.Health > 0 then
-
-			local part = getAimPart(p.Character)
-			if part and inFOV(part.Position) then
-				local d = (part.Position - Camera.CFrame.Position).Magnitude
-				if d < AIM_DISTANCE and d < dist then
-					dist = d
-					closest = p
-				end
+		if p ~= LocalPlayer and isValid(p) then
+			local d = (p.Character.Head.Position - Camera.CFrame.Position).Magnitude
+			if d < AIM_DISTANCE and d < dist then
+				dist = d
+				closest = p
 			end
 		end
 	end
 
-	LOCKED_TARGET = closest
+	LockedTarget = closest
+	if closest then lastValid = tick() end
 	return closest
 end
+
+--================= BOTÕES =================--
 
 AIMBtn.MouseButton1Click:Connect(function()
 	AIM_ON = not AIM_ON
 	AIMBtn.Text = "AIMBOT: "..(AIM_ON and "ON" or "OFF")
-	notify(AIM_ON and "Aimbot ativado!" or "Aimbot desativado!")
+	notify(AIM_ON and "Aimbot ativado!" or "Aimbot desativado")
 end)
 
 CriminalBtn.MouseButton1Click:Connect(function()
@@ -317,33 +454,32 @@ GuardBtn.MouseButton1Click:Connect(function()
 	GuardBtn.Text = "Aim Guards: "..(AIM_GUARDS and "ON" or "OFF")
 end)
 
+--================= LOOP =================--
+
 RunService.RenderStepped:Connect(function()
-	FOVCircle.Size = UDim2.new(0,FOV_RADIUS*2,0,FOV_RADIUS*2)
+	FOVCircle.Size = UDim2.new(0, FOV_RADIUS*2, 0, FOV_RADIUS*2)
 	FOVCircle.Position = UDim2.new(0.5,0,0.5,0)
 
-	if not AIM_ON then
-		LOCKED_TARGET = nil
-		return
-	end
+	if AIM_ON then
+		local t = getTarget()
+		if t and t.Character and t.Character:FindFirstChild("Head") then
+			local camPos = Camera.CFrame.Position
+			local headPos = t.Character.Head.Position
+			local dist = (headPos - camPos).Magnitude
 
-	local target = getTarget()
-	if target and target.Character then
-		local part = getAimPart(target.Character)
-		if part then
-			local dist = (part.Position - Camera.CFrame.Position).Magnitude
-			local smooth = math.clamp(
-				BASE_SMOOTH + (1 - dist / AIM_DISTANCE),
-				0.12,
-				0.35
-			)
+			-- smooth dinâmico (mobile friendly)
+			local smooth = math.clamp(0.08 + (dist / AIM_DISTANCE) * 0.12, 0.08, 0.2)
 
 			Camera.CFrame = Camera.CFrame:Lerp(
-				CFrame.new(Camera.CFrame.Position, part.Position),
+				CFrame.new(camPos, headPos),
 				smooth
 			)
 		end
+	else
+		LockedTarget = nil
 	end
 end)
 
 --================= LOAD =================--
-notify("MH Prison Life v1.2 carregado!")
+
+notify("Carregado com sucesso!\nby: Miel")
